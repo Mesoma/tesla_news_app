@@ -41,6 +41,8 @@ dependencies:
   path_provider: ^2.1.4
   google_nav_bar: ^5.0.6
   http:
+  shared_preferences: ^2.3.2
+  dartz: ^0.10.1
 
 
 dev_dependencies:

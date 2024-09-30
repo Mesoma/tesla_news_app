@@ -1,15 +1,13 @@
 import 'dart:math';
-import 'package:everything_app/data/news/news_shared_preferences_repo.dart';
-import 'package:everything_app/components/news_container.dart';
 import 'package:flutter/material.dart';
+import 'package:dartz/dartz.dart' as dartz;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class HomePage extends StatefulWidget {
   final String user;
-  final SharedNewsRepo newsRepo;
 
-  const HomePage({super.key, required this.user, required this.newsRepo});
+  const HomePage({super.key, required this.user});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -38,17 +36,6 @@ class _HomePageState extends State<HomePage> {
         listOfArticles = mapResponse['articles'];
       });
     }
-  }
-
-  // function to open news container
-  void openNews(int index) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            NewsContainer(index: index, newsRepo: widget.newsRepo),
-      ),
-    );
   }
 
   @override
@@ -174,66 +161,52 @@ class _HomePageState extends State<HomePage> {
 
                               const SizedBox(height: 10),
 
-                              GestureDetector(
-                                onTap: () => openNews(1),
-                                child: SizedBox(
-                                  child: Column(
-                                    children: [
-                                      // Trending news image
-                                      SizedBox(
-                                          height: 200,
-                                          width: double.infinity,
-                                          child: Image(
-                                            image: listOfArticles[1]
-                                                        ['urlToImage'] !=
-                                                    null
-                                                ? NetworkImage(listOfArticles[1]
-                                                    ['urlToImage'])
-                                                : const AssetImage(
-                                                    'assets/images/russian_moskva.jpg'),
-                                            fit: BoxFit.fitWidth,
-                                          )),
+                              // Trending news image
+                              SizedBox(
+                                  height: 200,
+                                  width: double.infinity,
+                                  child: Image(
+                                    image: listOfArticles[1]['urlToImage'] !=
+                                            null
+                                        ? NetworkImage(
+                                            listOfArticles[1]['urlToImage'])
+                                        : const AssetImage(
+                                            'assets/images/russian_moskva.jpg'),
+                                    fit: BoxFit.fitWidth,
+                                  )),
 
-                                      const SizedBox(height: 15),
+                              const SizedBox(height: 15),
 
-                                      // Trending news country
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(right: 170.0),
-                                        child: Text(
-                                          "Author: ${listOfArticles[1]['author']} ",
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
+                              // Trending news country
+                              Text(
+                                "Author: ${listOfArticles[1]['author']} ",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
 
-                                      // Trending news headline
-                                      Text(listOfArticles[1]['title']),
+                              // Trending news headline
+                              Text(listOfArticles[1]['title']),
 
-                                      const SizedBox(height: 10),
+                              const SizedBox(height: 10),
 
-                                      // News media provider, time image, time
-                                      Row(
-                                        children: [
-                                          Image.asset(
-                                              'assets/images/news_circle.jpg',
-                                              width: 24),
-                                          const SizedBox(width: 5),
-                                          const Text(
-                                            "BBC News",
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.bold),
-                                          ),
-                                          const SizedBox(width: 15),
-                                          Image.asset('assets/images/clock.png',
-                                              width: 24),
-                                          const SizedBox(width: 5),
-                                          const Text("4h"),
-                                        ],
-                                      ),
-                                    ],
+                              // News media provider, time image, time
+                              Row(
+                                children: [
+                                  Image.asset(
+                                      'assets/images/bbc_news_logo.webp',
+                                      width: 24),
+                                  const SizedBox(width: 5),
+                                  const Text(
+                                    "BBC News",
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold),
                                   ),
-                                ),
+                                  const SizedBox(width: 15),
+                                  Image.asset('assets/images/clock.png',
+                                      width: 24),
+                                  const SizedBox(width: 5),
+                                  const Text("4h"),
+                                ],
                               ),
 
                               const SizedBox(height: 20),
@@ -285,14 +258,11 @@ class _HomePageState extends State<HomePage> {
                                 itemBuilder: (context, index) {
                                   return Column(
                                     children: [
-                                      GestureDetector(
-                                        onTap: () => openNews(index),
-                                        child: newsTile(
-                                            index,
-                                            (filteredArticles.isEmpty)
-                                                ? listOfArticles
-                                                : filteredArticles),
-                                      ),
+                                      newsTile(
+                                          index,
+                                          (filteredArticles.isEmpty)
+                                              ? listOfArticles
+                                              : filteredArticles),
                                       const SizedBox(height: 10),
                                     ],
                                   );
@@ -322,6 +292,56 @@ Widget newsTile(int index, List articles) {
     return text;
   }
 
+  Function(dynamic v) pick(dynamic prop) =>
+      (dynamic v) => v[prop] == null ? dartz.none() : dartz.optionOf(v[prop]);
+
+  dartz.Option<T> pathLens<T>(List<dynamic> path, dynamic obj) {
+    var safeValue = path.fold<dartz.Option<dynamic>>(
+      dartz.optionOf(obj),
+      (opt, prop) {
+        return opt.flatMap((o) {
+          return pick(prop)(o);
+        });
+      },
+    );
+
+    return safeValue.map((e) => e as T);
+  }
+
+  var sourceName = pathLens<double>([index, 'source', 'name'], articles);
+
+  sourceName
+      .map((e) => e + 24)
+      // .map((e) => e.toString())
+      .map((v) {
+    return [
+      Image.asset('assets/images/bbc_news_logo.webp', width: 24),
+      const SizedBox(width: 5),
+
+      // Wrapping the text with Flexible to avoid overflow
+      Text(
+        " ",
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+
+      const SizedBox(width: 15),
+      Image.asset('assets/images/clock.png', width: 24),
+      const SizedBox(width: 5),
+      Text("${randomNumber}m"),
+    ];
+  });
+
+  imageOrFallback(dartz.Option<String> safeValue) {
+    ImageProvider<Object> bob = safeValue.fold(
+      () => const AssetImage('assets/images/news1.jpg'),
+      (v) => NetworkImage(v),
+    );
+
+    return bob;
+  }
+
+  var safeImageUrl = pathLens<String>([index, 'urlImage'], articles);
+
   return (articles[index].isEmpty)
       ? const SizedBox()
       : Padding(
@@ -331,9 +351,7 @@ Widget newsTile(int index, List articles) {
             children: [
               // News Image
               Image(
-                image: articles[index]['urlToImage'] != null
-                    ? NetworkImage(articles[index]['urlToImage'])
-                    : const AssetImage('assets/images/news1.jpg'),
+                image: imageOrFallback(safeImageUrl),
                 height: 102,
                 width: 150,
                 fit: BoxFit.cover,
@@ -346,7 +364,9 @@ Widget newsTile(int index, List articles) {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Author: ${articles[index]['author']} ",
+                      pathLens([index, 'author'], articles)
+                          .map((author) => "Author: ${author}")
+                          .getOrElse(() => 'No Author'),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 5),
@@ -362,7 +382,8 @@ Widget newsTile(int index, List articles) {
                     // News source and time
                     Row(
                       children: [
-                        Image.asset('assets/images/news_circle.jpg', width: 24),
+                        Image.asset('assets/images/bbc_news_logo.webp',
+                            width: 24),
                         const SizedBox(width: 5),
 
                         // Wrapping the text with Flexible to avoid overflow
